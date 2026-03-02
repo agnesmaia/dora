@@ -95,7 +95,7 @@ Com $\alpha = 0.1$ e $\gamma = 0.9$.
 | Autenticação   | [NextAuth.js v5](https://authjs.dev/) + Google         |
 | IA Generativa  | [OpenAI GPT-4o](https://openai.com/)                   |
 | Estilos        | [Tailwind CSS v4](https://tailwindcss.com/)            |
-| Ícones         | [Lucide React](https://lucide.dev/) + Material Symbols |
+| Ícones         | Material Symbols
 
 ---
 
