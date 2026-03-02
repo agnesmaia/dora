@@ -1,7 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getSession } from "@/lib/getSession";
 import { prisma } from "@/lib/db";
-import { carregarDataset } from "@/lib/datasets";
 import { ModeloQ } from "@/lib/qlearning";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -27,25 +26,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     where: { userId },
   });
 
-  let modeloQ: ModeloQ;
-
-  if (qValues.length === 0) {
-    modeloQ = carregarDataset(user.profile);
-
-    const data = [];
-    for (const [state, acoes] of Object.entries(modeloQ)) {
-      for (const [action, qValue] of Object.entries(acoes)) {
-        data.push({ userId, state, action, qValue });
-      }
-    }
-
-    await prisma.qValue.createMany({ data });
-  } else {
-    modeloQ = {};
-    for (const row of qValues) {
-      if (!modeloQ[row.state]) modeloQ[row.state] = {};
-      modeloQ[row.state][row.action] = row.qValue;
-    }
+  const modeloQ: ModeloQ = {};
+  for (const row of qValues) {
+    if (!modeloQ[row.state]) modeloQ[row.state] = {};
+    modeloQ[row.state][row.action] = row.qValue;
   }
 
   return res.status(200).json({ modeloQ });
