@@ -27,6 +27,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     modeloQ[estado][row.action] = row.qValue;
   }
 
-  const recomendacoes = recomendar(modeloQ, estado);
+  const recomendacoes = recomendar(modeloQ, estado, 10);
   return res.status(200).json({ recomendacoes, estado });
 }

@@ -23,7 +23,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[#EDE9FE] flex flex-col mx-auto items-center">
+    <main className="min-h-screen bg-[#F5EFE6] flex flex-col mx-auto items-center">
       <LoginForm />
     </main>
   );

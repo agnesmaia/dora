@@ -180,12 +180,8 @@ export default function DashboardView({ userName, atividadesCustom }: Props) {
         body: JSON.stringify({ dia, hora, energia }),
       });
       const data = await res.json();
-      const usedAcoes = new Set(atividades.map((a) => a.acao));
       const alts: AtividadeAgendada[] = (data.recomendacoes ?? [])
-        .filter(
-          (r: { acao: string }) =>
-            r.acao !== atividade.acao && !usedAcoes.has(r.acao),
-        )
+        .filter((r: { acao: string }) => r.acao !== atividade.acao)
         .slice(0, 3)
         .map((r: { acao: string; qValue: number }) => ({
           ...atividade,
