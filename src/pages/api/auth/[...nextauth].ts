@@ -1,9 +1,13 @@
 import { handlers } from "@/lib/auth";
 import type { NextApiRequest, NextApiResponse } from "next";
+import type { NextRequest } from "next/server";
 
 export const config = { api: { bodyParser: false } };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse,
+) {
   const baseUrl = `${process.env.NODE_ENV === "production" ? "https" : "http"}://${req.headers.host}`;
   const url = new URL(req.url!, baseUrl);
 
@@ -30,8 +34,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const response =
     req.method === "POST"
-      ? await handlers.POST(request as any)
-      : await handlers.GET(request as any);
+      ? await handlers.POST(request as NextRequest)
+      : await handlers.GET(request as NextRequest);
 
   res.status(response.status);
   response.headers.forEach((value, key) => res.setHeader(key, value));
