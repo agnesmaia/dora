@@ -11,13 +11,22 @@ type RankItem = { posicao: number; acao: string; qValue: number };
 
 interface SimResult {
   progressao: Ponto[];
+  progressaoSarsa: Ponto[];
+  progressaoBandit: Ponto[];
   rankingInicial: RankItem[];
   rankingFinal: RankItem[];
   qConvergencia: number;
+  banditConvergencia: number;
 }
 
 const BLOCOS = ["Manhã", "Tarde", "Noite"];
 const DIAS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+
+const SERIES = [
+  { key: "progressao" as const,      label: "Q-Learning", color: "#7C5C3E", dash: ""     },
+  { key: "progressaoSarsa" as const, label: "SARSA",      color: "#3B82F6", dash: "5 3"  },
+  { key: "progressaoBandit" as const,label: "Bandit",     color: "#10B981", dash: "2 3"  },
+];
 
 function estadoLegivel(estado: string) {
   const m = estado.match(/\((\d+),(\d+),(\d+)\)/);
@@ -29,23 +38,22 @@ function nomeAtividade(acao: string) {
   return ATIVIDADES_META[acao]?.nome ?? ATIVIDADES_MAP[acao] ?? acao;
 }
 
-function LineChart({
-  data,
-  convergencia,
-  positivo,
+function MultiLineChart({
+  series,
+  convergencias,
 }: {
-  data: Ponto[];
-  convergencia: number;
-  positivo: boolean;
+  series: { label: string; color: string; dash: string; data: Ponto[] }[];
+  convergencias: { label: string; color: string; value: number }[];
 }) {
-  const W = 300, H = 155;
-  const pL = 44, pR = 44, pT = 18, pB = 32;
+  const W = 300, H = 165;
+  const pL = 44, pR = 8, pT = 18, pB = 32;
   const pw = W - pL - pR;
   const ph = H - pT - pB;
-  const n = data.length;
 
-  const vals = data.map((d) => d.qValue);
-  const allVals = [...vals, convergencia];
+  const allVals = [
+    ...series.flatMap((s) => s.data.map((d) => d.qValue)),
+    ...convergencias.map((c) => c.value),
+  ];
   const rawMin = Math.min(...allVals);
   const rawMax = Math.max(...allVals);
   const margin = (rawMax - rawMin) * 0.12 || 5;
@@ -53,56 +61,51 @@ function LineChart({
   const maxQ = rawMax + margin;
   const range = maxQ - minQ || 1;
 
+  const n = series[0]?.data.length ?? 1;
   const toX = (i: number) => pL + (n > 1 ? (i / (n - 1)) * pw : pw / 2);
   const toY = (q: number) => pT + ph - ((q - minQ) / range) * ph;
 
-  const linePoints = data.map((d, i) => `${toX(i)},${toY(d.qValue)}`).join(" ");
-  const baseY = toY(Math.max(minQ, 0));
-  const areaPoints = [
-    `${toX(0)},${baseY}`,
-    ...data.map((d, i) => `${toX(i)},${toY(d.qValue)}`),
-    `${toX(n - 1)},${baseY}`,
-  ].join(" ");
-
-  const lineColor = positivo ? "#7C5C3E" : "#ef4444";
-  const fillColor = positivo ? "#F5EFE6" : "#fee2e2";
-  const convColor = positivo ? "#5C3D22" : "#dc2626";
-  const convY = toY(convergencia);
-  const midIdx = Math.floor((n - 1) / 2);
-
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
-      {/* Convergence dashed line */}
-      <line
-        x1={pL} y1={convY} x2={W - pR} y2={convY}
-        stroke={convColor} strokeWidth={1} strokeDasharray="4 3" strokeOpacity={0.5}
-      />
-      <text x={W - pR + 3} y={convY} fontSize={8} fill={convColor} dominantBaseline="middle">
-        Q*={convergencia}
-      </text>
-
-      {/* Zero line if mixed positive/negative */}
+      {/* Zero line */}
       {minQ < 0 && maxQ > 0 && (
         <line x1={pL} y1={toY(0)} x2={W - pR} y2={toY(0)} stroke="#d1d5db" strokeWidth={0.5} />
       )}
 
-      {/* Area fill */}
-      <polygon points={areaPoints} fill={fillColor} fillOpacity={0.55} />
+      {/* Convergence dashed lines */}
+      {convergencias.map((c) => (
+        <g key={c.label}>
+          <line
+            x1={pL} y1={toY(c.value)} x2={W - pR} y2={toY(c.value)}
+            stroke={c.color} strokeWidth={1} strokeDasharray="4 3" strokeOpacity={0.4}
+          />
+        </g>
+      ))}
 
-      {/* Line */}
-      <polyline
-        points={linePoints}
-        fill="none"
-        stroke={lineColor}
-        strokeWidth={2}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-
-      {/* Start dot (gray) */}
-      <circle cx={toX(0)} cy={toY(data[0].qValue)} r={3} fill="#9ca3af" />
-      {/* End dot (colored) */}
-      <circle cx={toX(n - 1)} cy={toY(data[n - 1].qValue)} r={4} fill={lineColor} />
+      {/* Series lines */}
+      {series.map((s) => {
+        const points = s.data.map((d, i) => `${toX(i)},${toY(d.qValue)}`).join(" ");
+        return (
+          <g key={s.label}>
+            <polyline
+              points={points}
+              fill="none"
+              stroke={s.color}
+              strokeWidth={2}
+              strokeDasharray={s.dash || undefined}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+            {/* End dot */}
+            <circle
+              cx={toX(n - 1)}
+              cy={toY(s.data[n - 1].qValue)}
+              r={3.5}
+              fill={s.color}
+            />
+          </g>
+        );
+      })}
 
       {/* Axes */}
       <line x1={pL} y1={pT} x2={pL} y2={H - pB} stroke="#e5e7eb" strokeWidth={1} />
@@ -111,29 +114,25 @@ function LineChart({
       {/* X labels */}
       <text x={toX(0)} y={H - pB + 13} fontSize={8} fill="#9ca3af" textAnchor="middle">Hoje</text>
       {n > 2 && (
-        <text x={toX(midIdx)} y={H - pB + 13} fontSize={8} fill="#9ca3af" textAnchor="middle">
-          Dia {data[midIdx].dia}
+        <text x={toX(Math.floor((n - 1) / 2))} y={H - pB + 13} fontSize={8} fill="#9ca3af" textAnchor="middle">
+          Dia {series[0].data[Math.floor((n - 1) / 2)].dia}
         </text>
       )}
       <text x={toX(n - 1)} y={H - pB + 13} fontSize={8} fill="#9ca3af" textAnchor="middle">
-        Dia {data[n - 1].dia}
+        Dia {series[0].data[n - 1].dia}
       </text>
 
-      {/* Y labels */}
-      <text x={pL - 5} y={toY(data[0].qValue)} fontSize={8} fill="#9ca3af" textAnchor="end" dominantBaseline="middle">
-        {data[0].qValue}
-      </text>
-      <text x={pL - 5} y={toY(data[n - 1].qValue)} fontSize={8} fill={lineColor} fontWeight="bold" textAnchor="end" dominantBaseline="middle">
-        {data[n - 1].qValue}
-      </text>
+      {/* Y min/max labels */}
+      <text x={pL - 5} y={pT + 4} fontSize={7} fill="#9ca3af" textAnchor="end">{Math.round(maxQ)}</text>
+      <text x={pL - 5} y={H - pB} fontSize={7} fill="#9ca3af" textAnchor="end">{Math.round(minQ)}</text>
     </svg>
   );
 }
 
 const RESPOSTAS = [
-  { id: "completou", label: "Fez" },
-  { id: "parcialmente", label: "Parcial" },
-  { id: "rejeitou", label: "Rejeitou" },
+  { id: "completou",    label: "Fez"      },
+  { id: "parcialmente", label: "Parcial"  },
+  { id: "rejeitou",     label: "Rejeitou" },
 ] as const;
 
 export default function SimulatePage({ energiaBase }: { energiaBase: number }) {
@@ -193,7 +192,22 @@ export default function SimulatePage({ energiaBase }: { energiaBase: number }) {
   const delta =
     posAntes !== undefined && posDepois !== undefined ? posAntes - posDepois : 0;
 
-  const positivo = (resultado?.qConvergencia ?? 1) > 0;
+  // Build chart series and convergence lines when result is available
+  const chartSeries = resultado
+    ? SERIES.map((s) => ({
+        label: s.label,
+        color: s.color,
+        dash: s.dash,
+        data: resultado[s.key],
+      }))
+    : [];
+
+  const chartConvergencias = resultado
+    ? [
+        { label: "Q-Learning / SARSA", color: "#7C5C3E", value: resultado.qConvergencia },
+        { label: "Bandit", color: "#10B981", value: resultado.banditConvergencia },
+      ]
+    : [];
 
   return (
     <main className="min-h-screen bg-[#FAF7F2] pb-24 md:pb-0 md:pl-56">
@@ -207,10 +221,10 @@ export default function SimulatePage({ energiaBase }: { energiaBase: number }) {
             >
               <span className="material-symbols-outlined text-[22px]">arrow_back</span>
             </button>
-            <h1 className="text-xl font-bold text-[#2C1810]">Simulação Q-Learning</h1>
+            <h1 className="text-xl font-bold text-[#2C1810]">Comparação de Algoritmos</h1>
           </div>
           <p className="text-sm text-[#A08060] mt-2 ml-8">
-            Projete como o Q-value de uma atividade evolui com feedback repetido ao longo dos dias.
+            Compare Q-Learning, SARSA e Multi-Armed Bandit com os mesmos episódios e condições.
           </p>
         </div>
 
@@ -316,52 +330,94 @@ export default function SimulatePage({ energiaBase }: { energiaBase: number }) {
             {/* Results */}
             {resultado && (
               <>
-                {/* Chart */}
+                {/* Multi-line chart */}
                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F0EBE3]">
-                  <h2 className="text-sm font-bold text-[#2C1810] mb-0.5">Evolução do Q-value</h2>
+                  <h2 className="text-sm font-bold text-[#2C1810] mb-0.5">
+                    Convergência comparativa
+                  </h2>
                   <p className="text-xs text-[#A08060] mb-3">
-                    {nomeAtividade(selectedAtiv)} · {dias} dias com "{resposta}"
+                    {nomeAtividade(selectedAtiv)} · {dias} dias · feedback &ldquo;{resposta}&rdquo;
                   </p>
-                  <LineChart
-                    data={resultado.progressao}
-                    convergencia={resultado.qConvergencia}
-                    positivo={positivo}
-                  />
+
+                  {/* Legend */}
+                  <div className="flex gap-4 mb-3">
+                    {SERIES.map((s) => (
+                      <div key={s.label} className="flex items-center gap-1.5">
+                        <svg width={20} height={8}>
+                          <line
+                            x1={0} y1={4} x2={20} y2={4}
+                            stroke={s.color}
+                            strokeWidth={2}
+                            strokeDasharray={s.dash || undefined}
+                          />
+                        </svg>
+                        <span className="text-xs text-[#7A6050]">{s.label}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <MultiLineChart series={chartSeries} convergencias={chartConvergencias} />
+
+                  {/* Stats table */}
                   <div className="mt-3 grid grid-cols-3 text-xs text-center gap-1">
-                    <div>
-                      <p className="text-[#A08060]">Q inicial</p>
-                      <p className="font-bold text-[#7A6050] text-base">
-                        {resultado.progressao[0].qValue}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[#A08060]">Q final</p>
-                      <p
-                        className={`font-bold text-base ${
-                          positivo ? "text-[#7C5C3E]" : "text-red-500"
-                        }`}
-                      >
-                        {resultado.progressao[resultado.progressao.length - 1].qValue}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[#A08060]">Convergência</p>
-                      <p
-                        className={`font-bold text-base ${
-                          positivo ? "text-[#C4A882]" : "text-red-300"
-                        }`}
-                      >
-                        {resultado.qConvergencia}
-                      </p>
-                    </div>
+                    {SERIES.map((s) => {
+                      const data = resultado[s.key];
+                      const qFinal = data[data.length - 1].qValue;
+                      return (
+                        <div key={s.label}>
+                          <p className="font-semibold mb-0.5" style={{ color: s.color }}>
+                            {s.label}
+                          </p>
+                          <p className="text-[#A08060]">
+                            {data[0].qValue} → <span className="font-bold" style={{ color: s.color }}>{qFinal}</span>
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* Ranking comparison */}
+                {/* Algorithm explanation */}
                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F0EBE3]">
-                  <h2 className="text-sm font-bold text-[#2C1810] mb-3">Posição no ranking</h2>
+                  <h2 className="text-sm font-bold text-[#2C1810] mb-3">Como cada algoritmo funciona</h2>
+                  <div className="flex flex-col gap-3">
+                    {[
+                      {
+                        color: "#7C5C3E",
+                        title: "Q-Learning (off-policy)",
+                        desc: "Atualiza com o valor máximo do próximo estado, independente da política seguida. Converge mais rápido mas ignora a exploração.",
+                      },
+                      {
+                        color: "#3B82F6",
+                        title: "SARSA (on-policy)",
+                        desc: "Atualiza com a ação realmente selecionada via ε-greedy no próximo estado. Mais conservador — considera o custo da exploração.",
+                      },
+                      {
+                        color: "#10B981",
+                        title: "Multi-Armed Bandit",
+                        desc: "Sem estados nem desconto futuro. Mantém média de recompensa por ação. Converge para a recompensa imediata, não o valor de longo prazo.",
+                      },
+                    ].map((item) => (
+                      <div key={item.title} className="flex gap-3 items-start">
+                        <div
+                          className="w-2 h-2 rounded-full mt-1.5 shrink-0"
+                          style={{ background: item.color }}
+                        />
+                        <div>
+                          <p className="text-xs font-semibold text-[#2C1810]">{item.title}</p>
+                          <p className="text-xs text-[#A08060] mt-0.5">{item.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-                  {/* Summary */}
+                {/* Ranking comparison (Q-Learning only, unchanged) */}
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#F0EBE3]">
+                  <h2 className="text-sm font-bold text-[#2C1810] mb-3">
+                    Posição no ranking (Q-Learning)
+                  </h2>
+
                   <div
                     className={`mb-4 rounded-xl px-3 py-2.5 text-center text-sm font-semibold ${
                       delta > 0
@@ -383,7 +439,6 @@ export default function SimulatePage({ energiaBase }: { energiaBase: number }) {
                     )}
                   </div>
 
-                  {/* Before / after */}
                   <div className="grid grid-cols-2 gap-3">
                     {(["Antes", "Depois"] as const).map((label) => {
                       const ranking =
