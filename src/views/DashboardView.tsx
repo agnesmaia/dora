@@ -135,8 +135,7 @@ export default function DashboardView({ userName, atividadesCustom }: Props) {
         if (concluidasHoje.length > 0) {
           const restoredFeedbacks: Record<number, boolean> = {};
           ativs.forEach((ativ, i) => {
-            const chave = `${ativ.acao}@${ativ.time}`;
-            if (concluidasHoje.includes(chave)) {
+            if (concluidasHoje.includes(ativ.acao)) {
               restoredFeedbacks[i] = true;
             }
           });
@@ -160,7 +159,6 @@ export default function DashboardView({ userName, atividadesCustom }: Props) {
         estado: atividade.estado,
         acao: atividade.acao,
         resposta: "completou",
-        time: atividade.time,
       }),
     });
     setFeedbacks((prev) => ({ ...prev, [index]: true }));
@@ -193,7 +191,7 @@ export default function DashboardView({ userName, atividadesCustom }: Props) {
     }
   }
 
-  function selecionarAlternativa(index: number, nova: AtividadeAgendada) {
+  async function selecionarAlternativa(index: number, nova: AtividadeAgendada) {
     setAtividades((prev) => prev.map((a, i) => (i === index ? nova : a)));
     setAjustando((prev) => ({ ...prev, [index]: false }));
     setAlternativas((prev) => ({ ...prev, [index]: [] }));
@@ -201,6 +199,17 @@ export default function DashboardView({ userName, atividadesCustom }: Props) {
       const next = { ...prev };
       delete next[index];
       return next;
+    });
+
+    await fetch("/api/recommend/daily", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        slotIndex: index,
+        acao: nova.acao,
+        estado: nova.estado,
+        qValue: nova.qValue,
+      }),
     });
   }
 

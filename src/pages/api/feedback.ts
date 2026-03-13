@@ -12,7 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const userId = session.user.id;
-  const { estado, acao, resposta, time } = req.body;
+  const { estado, acao, resposta } = req.body;
 
   if (!estado || !acao || !resposta) {
     return res.status(400).json({ error: "Dados inválidos" });
@@ -41,7 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Persiste a conclusão por data quando a atividade foi completada
   if (resposta === "completou") {
     const hoje = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
-    const chave = time ? `${acao}@${time}` : acao;
+    const chave = acao;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },

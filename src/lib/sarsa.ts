@@ -28,9 +28,10 @@ export function atualizarSarsaValue(
   const qAtual = modeloQ[estado]?.[acao] ?? 0;
   const acoes = modeloQ[estado] ?? {};
 
-  // On-policy: próxima ação escolhida por ε-greedy (não max)
-  const proximaAcao = selecionarAcaoEGreedy(acoes);
-  const qProxima = proximaAcao ? (acoes[proximaAcao] ?? 0) : 0;
+  // On-policy: próxima ação escolhida por ε-greedy (não max), excluindo a ação atual
+  const outrasAcoes = Object.fromEntries(Object.entries(acoes).filter(([a]) => a !== acao));
+  const proximaAcao = selecionarAcaoEGreedy(outrasAcoes);
+  const qProxima = proximaAcao ? (outrasAcoes[proximaAcao] ?? 0) : 0;
 
   return qAtual + ALPHA * (recompensa + GAMMA * qProxima - qAtual);
 }

@@ -19,7 +19,8 @@ model User {
   agendaDiaria          Json?     // legado: [{horario: "07:00", atividade: "<id>"}, ...]
   agendaSemanal         Json?     // {"0": [{horario, atividade}], ..., "6": [...]}  0=Seg, 6=Dom
   atividadesCustom      Json?     // [{id, nome, duracao, dificuldade, horarioIdeal, icone}, ...]
-  atividadesConcluidas  Json?     // {"2024-01-15": ["acao@time", ...], ...}
+  atividadesConcluidas  Json?     // {"2024-01-15": ["acao", ...], ...}
+  agendaHojeCache       Json?     // { date: "YYYY-MM-DD", slots: [{time, acao, qValue, estado}] }
   emailVerified DateTime?
   createdAt     DateTime  @default(now())
   accounts      Account[]

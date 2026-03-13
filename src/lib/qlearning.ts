@@ -40,7 +40,10 @@ export function atualizarQValue(
   const recompensa = RECOMPENSAS[resposta] ?? -1;
   const qAtual = modeloQ[estado]?.[acao] ?? 0;
   const acoes = modeloQ[estado] ?? {};
-  const maxQFuturo = Object.values(acoes).length > 0 ? Math.max(...Object.values(acoes)) : 0;
+  const outrasAcoes = Object.entries(acoes)
+    .filter(([a]) => a !== acao)
+    .map(([, v]) => v);
+  const maxQFuturo = outrasAcoes.length > 0 ? Math.max(...outrasAcoes) : 0;
 
   const qNovo = qAtual + ALPHA * (recompensa + GAMMA * maxQFuturo - qAtual);
   return qNovo;
